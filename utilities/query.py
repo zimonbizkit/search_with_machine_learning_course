@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 import pandas as pd
 import fileinput
 import logging
-
+import fasttext
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -190,6 +190,9 @@ def search(client, user_query, index="bbuy_products", sort="_score", sortDir="de
     #### W3: classify the query
     #### W3: create filters and boosts
     # Note: you may also want to modify the `create_query` method above
+    query_classifier = fasttext.load_model('week3/query_classifier_mq10k_lr1_wng2_e3.bin')
+
+    predicted, probability = query_classifier.predict(user_query,5)
     query_obj = create_query(user_query, click_prior_query=None, filters=None, sort=sort, sortDir=sortDir, source=["name", "shortDescription"])
     logging.info(query_obj)
     response = client.search(query_obj, index=index)
