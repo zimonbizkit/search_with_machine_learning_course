@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 import pandas as pd
 import fileinput
 import logging
-
+import fasttext
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -190,7 +190,37 @@ def search(client, user_query, index="bbuy_products", sort="_score", sortDir="de
     #### W3: classify the query
     #### W3: create filters and boosts
     # Note: you may also want to modify the `create_query` method above
-    query_obj = create_query(user_query, click_prior_query=None, filters=None, sort=sort, sortDir=sortDir, source=["name", "shortDescription"])
+
+    query_classifier = fasttext.load_model('/workspace/search_with_machine_learning_course/week3/query_classifier_mq_10k_lr_1_wng_2_e3.bin')
+
+    predicted, score = query_classifier.predict(user_query,5)
+    print(list(predicted))
+    print(score)
+
+    treshold = 0.5
+    predictions_dict = [(k.removeprefix('__label__'),v) for i ,(k,v) in enumerate(zip(predicted,score)) if v >= treshold]
+    c_prob =str(sum(list([float(v) for (k,v) in predictions_dict])))
+
+    #print(f"Cumulative probability of {c_prob}")
+
+    if len(predictions_dict)> 0:
+        print("Appending following predicted categories on query:")
+        print(predictions_dict)
+
+        _filters = []
+        _filters.append({
+            "terms": {
+                "categoryPathIds": list([k for (k,v) in predictions_dict]) 
+            }
+        })
+    else:
+        _filters= None
+
+    print(_filters)
+
+
+
+    query_obj = create_query(user_query, click_prior_query=None, filters=_filters, sort=sort, sortDir=sortDir, source=["name", "shortDescription"])
     logging.info(query_obj)
     response = client.search(query_obj, index=index)
     if response and response['hits']['hits'] and len(response['hits']['hits']) > 0:
